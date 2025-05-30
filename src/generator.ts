@@ -24,7 +24,8 @@ export function generateUdevFile(
       output += generateRuleForDevice(vendorId, null, options);
     } else {
       // Add rules for each product ID
-      for (const productId of definition.productIds) {
+      const sortedIds = [...definition.productIds].sort((a, b) => a - b);
+      for (const productId of sortedIds) {
         const productIdHex = productId.toString(16).padStart(4, "0");
         output += generateRuleForDevice(vendorId, productIdHex, options);
       }

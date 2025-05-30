@@ -9,6 +9,9 @@
 			"*": ["./node_modules/*"],
 			"udev-generator": ["./src/main.ts"]
 		},
-		"types": ["node"]
+		"types": ["node"],
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true
 	}
 }

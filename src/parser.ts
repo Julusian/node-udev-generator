@@ -70,6 +70,26 @@ export class UdevRuleGenerator {
   }
 
   /**
+   * Add multiple rules from an array of UdevRuleDefinition objects
+   *
+   * @param rules Array of UdevRuleDefinition objects to add
+   */
+  addRules(rules: UdevRuleDefinition[]): void {
+    if (!Array.isArray(rules))
+      throw new TypeError("Expected an array of rules");
+
+    for (const rule of rules) {
+      if (rule.productIds === null) {
+        this.addVendorWildcard(rule.vendorId);
+      } else {
+        for (const productId of rule.productIds) {
+          this.addDevice(rule.vendorId, productId);
+        }
+      }
+    }
+  }
+
+  /**
    * Add a vendor with wildcard for all its product IDs
    *
    * @param vendorId The vendor ID in decimal (e.g., 1234)
