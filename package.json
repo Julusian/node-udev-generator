@@ -1,6 +1,6 @@
 {
   "name": "udev-generator",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "packageManager": "yarn@4.9.1",
   "main": "dist/main.js",
   "repository": {
