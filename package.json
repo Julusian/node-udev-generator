@@ -15,6 +15,9 @@
     "watch-types": "tsc --watch --project tsconfig.json",
     "test": "vitest"
   },
+  "files": [
+    "dist"
+  ],
   "devDependencies": {
     "@tsconfig/node20": "^20.1.5",
     "@types/node": "^20.17.50",
