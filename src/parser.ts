@@ -1,55 +1,94 @@
 import { UdevRuleDefinition } from "./types";
+import { generateUdevFile, UdevGeneratorOptions } from "./generator";
 
-/**
- * Parses a udev rules file and extracts device definitions
- *
- * @param content The content of the udev rules file
- * @returns An array of UdevRuleDefinition objects with merged/deduplicated entries
- */
-export function parseUDevFile(content: string): UdevRuleDefinition[] {
-  const lines = content.split("\n");
-  const deviceMap = new Map<number, UdevRuleDefinition>();
+export class UdevRuleGenerator {
+  private deviceMap: Map<number, UdevRuleDefinition> = new Map();
 
-  for (const line of lines) {
-    // Skip empty lines and comments
-    if (!line.trim() || line.trim().startsWith("#")) {
-      continue;
-    }
+  /**
+   * Get the current set of rules
+   */
+  get rules(): UdevRuleDefinition[] {
+    return Array.from(this.deviceMap.values());
+  }
 
-    // Extract vendor ID and product ID if they exist in the line
-    const vendorMatch = line.match(/ATTRS\{idVendor\}=="([0-9a-f]{4})"/i);
-    const productMatch = line.match(/ATTRS\{idProduct\}=="([0-9a-f]{4})"/i);
+  /**
+   * Parse and add rules from an existing udev rules file content
+   *
+   * @param content The content of the udev rules file
+   */
+  addFileContents(content: string): void {
+    const lines = content.split("\n");
 
-    if (vendorMatch) {
-      const vendorId = parseInt(vendorMatch[1], 16);
-      const productId = productMatch ? parseInt(productMatch[1], 16) : null;
+    for (const line of lines) {
+      // Skip empty lines and comments
+      if (!line.trim() || line.trim().startsWith("#")) {
+        continue;
+      }
 
-      // Use the vendor ID directly as the key for merging
+      // Extract vendor ID and product ID if they exist in the line
+      const vendorMatch = line.match(/ATTRS\{idVendor\}=="([0-9a-f]{4})"/i);
+      const productMatch = line.match(/ATTRS\{idProduct\}=="([0-9a-f]{4})"/i);
 
-      if (!deviceMap.has(vendorId)) {
-        deviceMap.set(vendorId, {
-          vendorId,
-          productIds: productId ? [productId] : null,
-        });
-      } else {
-        const existing = deviceMap.get(vendorId)!;
+      if (vendorMatch) {
+        const vendorId = parseInt(vendorMatch[1], 16);
+        const productId = productMatch ? parseInt(productMatch[1], 16) : null;
 
-        // If this rule has no product ID or the existing rule has no product ID,
-        // set productIds to null (meaning all product IDs are allowed)
-        if (productId === null || existing.productIds === null) {
-          existing.productIds = null;
-        }
-        // Otherwise, add this product ID if it's not already in the array
-        else if (
-          productId !== null &&
-          !existing.productIds.includes(productId)
-        ) {
-          existing.productIds.push(productId);
+        if (productId !== null) {
+          this.addDevice(vendorId, productId);
+        } else {
+          this.addVendorWildcard(vendorId);
         }
       }
     }
   }
 
-  // Convert map values to array
-  return Array.from(deviceMap.values());
+  /**
+   * Add a specific device by vendor and product ID
+   *
+   * @param vendorId The vendor ID in decimal (e.g., 1234)
+   * @param productId The product ID in decimal (e.g., 5678)
+   */
+  addDevice(vendorId: number, productId: number): void {
+    if (!this.deviceMap.has(vendorId)) {
+      this.deviceMap.set(vendorId, {
+        vendorId,
+        productIds: [productId],
+      });
+    } else {
+      const existing = this.deviceMap.get(vendorId)!;
+
+      // If the existing entry has wildcarded product IDs, no need to add specific ones
+      if (existing.productIds === null) {
+        return;
+      }
+
+      // Add the product ID if it doesn't already exist
+      if (!existing.productIds.includes(productId)) {
+        existing.productIds.push(productId);
+      }
+    }
+  }
+
+  /**
+   * Add a vendor with wildcard for all its product IDs
+   *
+   * @param vendorId The vendor ID in decimal (e.g., 1234)
+   */
+  addVendorWildcard(vendorId: number): void {
+    // Always replace with wildcard regardless of existing entries
+    this.deviceMap.set(vendorId, {
+      vendorId,
+      productIds: null, // null means all product IDs are allowed
+    });
+  }
+
+  /**
+   * Generate a udev rules file from the current rules
+   *
+   * @param options Generator options
+   * @returns Generated udev rules content
+   */
+  generateFile(options: UdevGeneratorOptions): string {
+    return generateUdevFile(this.rules, options);
+  }
 }
