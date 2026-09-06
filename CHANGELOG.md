@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/Julusian/node-udev-generator/compare/v1.0.2...v1.0.3) (2026-09-06)
+
+
+### Bug Fixes
+
+* add license descriptor to package.json ([a8ed32f](https://github.com/Julusian/node-udev-generator/commit/a8ed32fa9afd2781b42cc32d0f66100bed6f1ec3))
+
 ## [1.0.2](https://github.com/Julusian/node-udev-generator/compare/v1.0.1...v1.0.2) (2025-09-28)
 
 
