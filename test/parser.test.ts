@@ -229,6 +229,48 @@ describe("UdevRuleGenerator", () => {
     ]);
   });
 
+  it("should return rules in a stable order regardless of insertion order", () => {
+    const generator = new UdevRuleGenerator();
+    generator.addDevice(0x0fd9, 0x0086);
+    generator.addDevice(0x0fd9, 0x0060);
+    generator.addDevice(0x05f3, 0x0405);
+    generator.addDevice(0x0fd9, 0x0063);
+
+    const generator2 = new UdevRuleGenerator();
+    generator2.addDevice(0x0fd9, 0x0063);
+    generator2.addDevice(0x05f3, 0x0405);
+    generator2.addDevice(0x0fd9, 0x0060);
+    generator2.addDevice(0x0fd9, 0x0086);
+
+    const expected: UdevRuleDefinition[] = [
+      {
+        vendorId: 0x05f3,
+        productIds: [0x0405],
+      },
+      {
+        vendorId: 0x0fd9,
+        productIds: [0x0060, 0x0063, 0x0086],
+      },
+    ];
+
+    expect(generator.rules).toEqual(expected);
+    expect(generator2.rules).toEqual(expected);
+  });
+
+  it("should not expose the internal state through the rules getter", () => {
+    const generator = new UdevRuleGenerator();
+    generator.addDevice(0x0fd9, 0x0060);
+
+    generator.rules[0].productIds!.push(0x0063);
+
+    expect(generator.rules).toEqual([
+      {
+        vendorId: 0x0fd9,
+        productIds: [0x0060],
+      },
+    ]);
+  });
+
   it("should generate a file using the generator function", () => {
     const generator = new UdevRuleGenerator();
     generator.addDevice(0x0fd9, 0x0060);

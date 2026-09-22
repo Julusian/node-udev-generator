@@ -6,9 +6,19 @@ export class UdevRuleGenerator {
 
   /**
    * Get the current set of rules
+   *
+   * The rules are sorted by vendor id, with the product ids of each sorted numerically,
+   * so that the result is stable no matter the order they were added in.
    */
   get rules(): UdevRuleDefinition[] {
-    return Array.from(this.deviceMap.values());
+    return Array.from(this.deviceMap.values())
+      .map((definition) => ({
+        vendorId: definition.vendorId,
+        productIds: definition.productIds
+          ? [...definition.productIds].sort((a, b) => a - b)
+          : null,
+      }))
+      .sort((a, b) => a.vendorId - b.vendorId);
   }
 
   /**

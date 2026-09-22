@@ -15,8 +15,13 @@ export function generateUdevFile(
   // Start with the standard input subsystem rule
   let output = 'SUBSYSTEM=="input", GROUP="input", MODE="0660"\n\n';
 
-  // Process each device definition
-  for (const definition of definitions) {
+  // Process each device definition, sorted by vendor id so that the output is
+  // stable no matter the order the definitions were provided in
+  const sortedDefinitions = [...definitions].sort(
+    (a, b) => a.vendorId - b.vendorId,
+  );
+
+  for (const definition of sortedDefinitions) {
     const vendorId = definition.vendorId.toString(16).padStart(4, "0");
 
     if (definition.productIds === null) {
