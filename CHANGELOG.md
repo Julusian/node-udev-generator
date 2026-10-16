@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/Julusian/node-udev-generator/compare/v1.1.0...v1.2.0) (2026-10-16)
+
+
+### Features
+
+* take bluetooth as an options object, and apply it per product ([00c73a1](https://github.com/Julusian/node-udev-generator/commit/00c73a14323d717ec7045f167bcf94fa16f62198))
+
 ## [1.1.0](https://github.com/Julusian/node-udev-generator/compare/v1.0.3...v1.1.0) (2026-10-16)
 
 
