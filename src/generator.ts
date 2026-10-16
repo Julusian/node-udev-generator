@@ -15,36 +15,42 @@ export function generateUdevFile(
   // Start with the standard input subsystem rule
   let output = 'SUBSYSTEM=="input", GROUP="input", MODE="0660"\n\n';
 
-  // Process each device definition, sorted by vendor id so that the output is
-  // stable no matter the order the definitions were provided in
-  const sortedDefinitions = [...definitions].sort(
-    (a, b) => a.vendorId - b.vendorId,
-  );
-
-  for (const definition of sortedDefinitions) {
-    const vendorId = definition.vendorId.toString(16).padStart(4, "0");
-
+  // Flatten into one entry per rule, sorted by vendor id then product id so that the
+  // output is stable no matter the order the definitions were provided in
+  const entries: {
+    vendorId: number;
+    productId: number | null;
+    bluetooth: boolean;
+  }[] = [];
+  for (const definition of definitions) {
+    const bluetooth = !!definition.bluetooth;
     if (definition.productIds === null) {
-      // Add a single rule for all products of this vendor
-      output += generateRuleForDevice(
-        vendorId,
-        null,
-        !!definition.bluetooth,
-        options,
-      );
+      // A single rule for all products of this vendor
+      entries.push({
+        vendorId: definition.vendorId,
+        productId: null,
+        bluetooth,
+      });
     } else {
-      // Add rules for each product ID
-      const sortedIds = [...definition.productIds].sort((a, b) => a - b);
-      for (const productId of sortedIds) {
-        const productIdHex = productId.toString(16).padStart(4, "0");
-        output += generateRuleForDevice(
-          vendorId,
-          productIdHex,
-          !!definition.bluetooth,
-          options,
-        );
+      for (const productId of definition.productIds) {
+        entries.push({ vendorId: definition.vendorId, productId, bluetooth });
       }
     }
+  }
+  entries.sort(
+    (a, b) =>
+      a.vendorId - b.vendorId || (a.productId ?? -1) - (b.productId ?? -1),
+  );
+
+  for (const entry of entries) {
+    output += generateRuleForDevice(
+      entry.vendorId.toString(16).padStart(4, "0"),
+      entry.productId === null
+        ? null
+        : entry.productId.toString(16).padStart(4, "0"),
+      entry.bluetooth,
+      options,
+    );
   }
 
   return output;

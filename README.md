@@ -115,7 +115,7 @@ generator.addRules([
   { vendorId: 0x046d, productIds: [0xc354], bluetooth: true },
 ]);
 // or
-generator.addDevice(0x046d, 0xc354, true);
+generator.addDevice(0x046d, 0xc354, { bluetooth: true });
 ```
 
 This adds a second rule that matches the HID device name instead of the USB attributes:
@@ -125,7 +125,7 @@ KERNEL=="hidraw*", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c354", MODE:="660
 KERNEL=="hidraw*", KERNELS=="*:046D:C354.*", MODE:="660", TAG+="uaccess"
 ```
 
-The flag applies to the whole vendor entry, so it covers every product ID listed for that vendor. When parsing an existing file, it is set if any `KERNELS` rule is found for the vendor.
+The flag applies only to the product IDs in that definition, so other products from the same vendor keep only their USB rule. On a vendor wildcard (`productIds: null`) it covers every product from the vendor. When parsing an existing file, it is set for each product that has a `KERNELS` rule, and `rules` splits a vendor with a mix of bluetooth and non-bluetooth products into a definition for each.
 
 ### API Reference
 
@@ -135,6 +135,10 @@ The flag applies to the whole vendor entry, so it covers every product ID listed
 interface UdevRuleDefinition {
   vendorId: number; // Vendor ID as decimal number
   productIds: number[] | null; // Array of product IDs, or null for all products
+  bluetooth?: boolean; // Also match when connected over Bluetooth (default: false)
+}
+
+interface UdevDeviceOptions {
   bluetooth?: boolean; // Also match when connected over Bluetooth (default: false)
 }
 
@@ -152,8 +156,8 @@ interface UdevGeneratorOptions {
 #### UdevRuleGenerator Class
 
 - `new UdevRuleGenerator()` - Create a new generator instance
-- `addDevice(vendorId: number, productId: number, bluetooth?: boolean): void` - Add a specific device
-- `addVendorWildcard(vendorId: number, bluetooth?: boolean): void` - Add all products from a vendor
+- `addDevice(vendorId: number, productId: number, options?: UdevDeviceOptions): void` - Add a specific device
+- `addVendorWildcard(vendorId: number, options?: UdevDeviceOptions): void` - Add all products from a vendor
 - `addRules(rules: UdevRuleDefinition[]): void` - Add multiple rule definitions
 - `addFileContents(content: string): void` - Parse and merge existing udev rules
 - `generateFile(options: UdevGeneratorOptions): string` - Generate the final rules

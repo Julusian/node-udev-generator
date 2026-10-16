@@ -319,11 +319,70 @@ describe("UdevRuleGenerator", () => {
 
   it("should keep bluetooth when a vendor wildcard replaces product IDs", () => {
     const generator = new UdevRuleGenerator();
-    generator.addDevice(0x046d, 0xc354, true);
+    generator.addDevice(0x046d, 0xc354, { bluetooth: true });
     generator.addVendorWildcard(0x046d);
 
     expect(generator.rules).toStrictEqual([
       { vendorId: 0x046d, productIds: null, bluetooth: true },
+    ]);
+  });
+
+  it("should only apply bluetooth to the products that asked for it", () => {
+    const generator = new UdevRuleGenerator();
+    generator.addDevice(0x046d, 0xc354, { bluetooth: true });
+    generator.addDevice(0x046d, 0xbc00);
+    generator.addDevice(0x046d, 0xc355);
+
+    expect(generator.rules).toStrictEqual([
+      { vendorId: 0x046d, productIds: [0xbc00, 0xc355] },
+      { vendorId: 0x046d, productIds: [0xc354], bluetooth: true },
+    ]);
+
+    expect(generator.generateFile({ mode: "desktop" })).toBe(
+      'SUBSYSTEM=="input", GROUP="input", MODE="0660"\n' +
+        "\n" +
+        'KERNEL=="hidraw*", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="bc00", MODE:="660", TAG+="uaccess"\n' +
+        'KERNEL=="hidraw*", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c354", MODE:="660", TAG+="uaccess"\n' +
+        'KERNEL=="hidraw*", KERNELS=="*:046D:C354.*", MODE:="660", TAG+="uaccess"\n' +
+        'KERNEL=="hidraw*", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c355", MODE:="660", TAG+="uaccess"\n',
+    );
+  });
+
+  it("should round trip mixed bluetooth products through the generator", () => {
+    const rules: UdevRuleDefinition[] = [
+      { vendorId: 0x046d, productIds: [0xbc00] },
+      { vendorId: 0x046d, productIds: [0xc354], bluetooth: true },
+    ];
+
+    const generator = new UdevRuleGenerator();
+    generator.addRules(rules);
+
+    const parsed = new UdevRuleGenerator();
+    parsed.addFileContents(generator.generateFile({ mode: "desktop" }));
+
+    expect(parsed.rules).toStrictEqual(rules);
+  });
+
+  it("should keep bluetooth when a product is added again without it", () => {
+    const generator = new UdevRuleGenerator();
+    generator.addDevice(0x046d, 0xc354, { bluetooth: true });
+    generator.addDevice(0x046d, 0xc354);
+
+    expect(generator.rules).toStrictEqual([
+      { vendorId: 0x046d, productIds: [0xc354], bluetooth: true },
+    ]);
+  });
+
+  it("should still accept the deprecated bluetooth boolean", () => {
+    const generator = new UdevRuleGenerator();
+    generator.addDevice(0x046d, 0xc354, true);
+    generator.addVendorWildcard(0x05f3, true);
+    generator.addDevice(0x0fd9, 0x0060, false);
+
+    expect(generator.rules).toStrictEqual([
+      { vendorId: 0x046d, productIds: [0xc354], bluetooth: true },
+      { vendorId: 0x05f3, productIds: null, bluetooth: true },
+      { vendorId: 0x0fd9, productIds: [0x0060] },
     ]);
   });
 
