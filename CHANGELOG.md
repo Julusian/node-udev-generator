@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0](https://github.com/Julusian/node-udev-generator/compare/v1.0.3...v1.1.0) (2026-10-16)
+
+
+### Features
+
+* support bluetooth HID rules ([52991f7](https://github.com/Julusian/node-udev-generator/commit/52991f7fbc59a8b0dae0203b7dbae1f051597e15))
+
+
+### Bug Fixes
+
+* sort ids to give predictability ([e797eb6](https://github.com/Julusian/node-udev-generator/commit/e797eb6a2e4c610b4ca77c2cd42d2d8a828f9e1b))
+
 ## [1.0.3](https://github.com/Julusian/node-udev-generator/compare/v1.0.2...v1.0.3) (2026-09-06)
 
 
