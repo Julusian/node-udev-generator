@@ -26,13 +26,23 @@ export function generateUdevFile(
 
     if (definition.productIds === null) {
       // Add a single rule for all products of this vendor
-      output += generateRuleForDevice(vendorId, null, options);
+      output += generateRuleForDevice(
+        vendorId,
+        null,
+        !!definition.bluetooth,
+        options,
+      );
     } else {
       // Add rules for each product ID
       const sortedIds = [...definition.productIds].sort((a, b) => a - b);
       for (const productId of sortedIds) {
         const productIdHex = productId.toString(16).padStart(4, "0");
-        output += generateRuleForDevice(vendorId, productIdHex, options);
+        output += generateRuleForDevice(
+          vendorId,
+          productIdHex,
+          !!definition.bluetooth,
+          options,
+        );
       }
     }
   }
@@ -43,6 +53,7 @@ export function generateUdevFile(
 function generateRuleForDevice(
   vendorId: string,
   productId: string | null,
+  bluetooth: boolean,
   options: UdevGeneratorOptions,
 ): string {
   const userGroup = options.userGroup || "plugdev";
@@ -56,5 +67,14 @@ function generateRuleForDevice(
       : `MODE:="660", GROUP="${userGroup}"`;
 
   // For hidraw only
-  return `KERNEL=="hidraw*", ${vendorAttr}${productAttr}, ${accessRule}\n`;
+  let output = `KERNEL=="hidraw*", ${vendorAttr}${productAttr}, ${accessRule}\n`;
+
+  if (bluetooth) {
+    // The HID parent device is named BUS:VVVV:PPPP.NNNN in uppercase hex. Matching on this
+    // covers devices without usb attributes, such as those connected over bluetooth
+    const hidMatch = `KERNELS=="*:${vendorId.toUpperCase()}:${productId ? productId.toUpperCase() : "*"}.*"`;
+    output += `KERNEL=="hidraw*", ${hidMatch}, ${accessRule}\n`;
+  }
+
+  return output;
 }

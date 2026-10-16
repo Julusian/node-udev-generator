@@ -12,12 +12,16 @@ export class UdevRuleGenerator {
    */
   get rules(): UdevRuleDefinition[] {
     return Array.from(this.deviceMap.values())
-      .map((definition) => ({
-        vendorId: definition.vendorId,
-        productIds: definition.productIds
-          ? [...definition.productIds].sort((a, b) => a - b)
-          : null,
-      }))
+      .map((definition) => {
+        const result: UdevRuleDefinition = {
+          vendorId: definition.vendorId,
+          productIds: definition.productIds
+            ? [...definition.productIds].sort((a, b) => a - b)
+            : null,
+        };
+        if (definition.bluetooth) result.bluetooth = true;
+        return result;
+      })
       .sort((a, b) => a.vendorId - b.vendorId);
   }
 
@@ -39,6 +43,11 @@ export class UdevRuleGenerator {
       const vendorMatch = line.match(/ATTRS\{idVendor\}=="([0-9a-f]{4})"/i);
       const productMatch = line.match(/ATTRS\{idProduct\}=="([0-9a-f]{4})"/i);
 
+      // A match on the HID device name means the device is wanted over bluetooth
+      const hidMatch = line.match(
+        /KERNELS=="(?:\*|[0-9a-f]{4}):([0-9a-f]{4}):([0-9a-f]{4}|\*)\.\*"/i,
+      );
+
       if (vendorMatch) {
         const vendorId = parseInt(vendorMatch[1], 16);
         const productId = productMatch ? parseInt(productMatch[1], 16) : null;
@@ -47,6 +56,16 @@ export class UdevRuleGenerator {
           this.addDevice(vendorId, productId);
         } else {
           this.addVendorWildcard(vendorId);
+        }
+      } else if (hidMatch) {
+        const vendorId = parseInt(hidMatch[1], 16);
+        const productId =
+          hidMatch[2] === "*" ? null : parseInt(hidMatch[2], 16);
+
+        if (productId !== null) {
+          this.addDevice(vendorId, productId, true);
+        } else {
+          this.addVendorWildcard(vendorId, true);
         }
       }
     }
@@ -57,15 +76,18 @@ export class UdevRuleGenerator {
    *
    * @param vendorId The vendor ID in decimal (e.g., 1234)
    * @param productId The product ID in decimal (e.g., 5678)
+   * @param bluetooth Also match the vendor's devices when connected over bluetooth
    */
-  addDevice(vendorId: number, productId: number): void {
+  addDevice(vendorId: number, productId: number, bluetooth = false): void {
     if (!this.deviceMap.has(vendorId)) {
       this.deviceMap.set(vendorId, {
         vendorId,
         productIds: [productId],
+        bluetooth,
       });
     } else {
       const existing = this.deviceMap.get(vendorId)!;
+      if (bluetooth) existing.bluetooth = true;
 
       // If the existing entry has wildcarded product IDs, no need to add specific ones
       if (existing.productIds === null) {
@@ -90,10 +112,10 @@ export class UdevRuleGenerator {
 
     for (const rule of rules) {
       if (rule.productIds === null) {
-        this.addVendorWildcard(rule.vendorId);
+        this.addVendorWildcard(rule.vendorId, rule.bluetooth);
       } else {
         for (const productId of rule.productIds) {
-          this.addDevice(rule.vendorId, productId);
+          this.addDevice(rule.vendorId, productId, rule.bluetooth);
         }
       }
     }
@@ -103,12 +125,14 @@ export class UdevRuleGenerator {
    * Add a vendor with wildcard for all its product IDs
    *
    * @param vendorId The vendor ID in decimal (e.g., 1234)
+   * @param bluetooth Also match the vendor's devices when connected over bluetooth
    */
-  addVendorWildcard(vendorId: number): void {
+  addVendorWildcard(vendorId: number, bluetooth = false): void {
     // Always replace with wildcard regardless of existing entries
     this.deviceMap.set(vendorId, {
       vendorId,
       productIds: null, // null means all product IDs are allowed
+      bluetooth: bluetooth || !!this.deviceMap.get(vendorId)?.bluetooth,
     });
   }
 

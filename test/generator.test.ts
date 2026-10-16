@@ -125,4 +125,35 @@ describe("UDev Generator", () => {
       'KERNEL=="hidraw*", ATTRS{idVendor}=="abcd", MODE:="660", TAG+="uaccess"',
     );
   });
+
+  it("only adds bluetooth rules when requested", () => {
+    const definitions: UdevRuleDefinition[] = [
+      {
+        vendorId: 0x046d,
+        productIds: [0xc354],
+        bluetooth: true,
+      },
+      {
+        vendorId: 0x05f3,
+        productIds: null,
+        bluetooth: true,
+      },
+      {
+        vendorId: 0x0fd9,
+        productIds: [0x0060],
+      },
+    ];
+
+    const output = generateUdevFile(definitions, { mode: "desktop" });
+
+    expect(output).toBe(
+      'SUBSYSTEM=="input", GROUP="input", MODE="0660"\n' +
+        "\n" +
+        'KERNEL=="hidraw*", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c354", MODE:="660", TAG+="uaccess"\n' +
+        'KERNEL=="hidraw*", KERNELS=="*:046D:C354.*", MODE:="660", TAG+="uaccess"\n' +
+        'KERNEL=="hidraw*", ATTRS{idVendor}=="05f3", MODE:="660", TAG+="uaccess"\n' +
+        'KERNEL=="hidraw*", KERNELS=="*:05F3:*.*", MODE:="660", TAG+="uaccess"\n' +
+        'KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0060", MODE:="660", TAG+="uaccess"\n',
+    );
+  });
 });

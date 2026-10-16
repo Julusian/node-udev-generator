@@ -106,14 +106,36 @@ For headless environments:
 KERNEL=="hidraw*", ATTRS{idVendor}=="ffff", ATTRS{idProduct}=="1f40", MODE:="660", GROUP="plugdev"
 ```
 
+### Bluetooth
+
+By default, rules only match devices connected over USB. To also match a device when it is connected over Bluetooth, set `bluetooth: true` on its definition:
+
+```typescript
+generator.addRules([
+  { vendorId: 0x046d, productIds: [0xc354], bluetooth: true },
+]);
+// or
+generator.addDevice(0x046d, 0xc354, true);
+```
+
+This adds a second rule that matches the HID device name instead of the USB attributes:
+
+```
+KERNEL=="hidraw*", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c354", MODE:="660", TAG+="uaccess"
+KERNEL=="hidraw*", KERNELS=="*:046D:C354.*", MODE:="660", TAG+="uaccess"
+```
+
+The flag applies to the whole vendor entry, so it covers every product ID listed for that vendor. When parsing an existing file, it is set if any `KERNELS` rule is found for the vendor.
+
 ### API Reference
 
 #### Types
 
 ```typescript
 interface UdevRuleDefinition {
-  vendorId: number;           // Vendor ID as decimal number
+  vendorId: number; // Vendor ID as decimal number
   productIds: number[] | null; // Array of product IDs, or null for all products
+  bluetooth?: boolean; // Also match when connected over Bluetooth (default: false)
 }
 
 interface UdevGeneratorOptions {
@@ -130,8 +152,8 @@ interface UdevGeneratorOptions {
 #### UdevRuleGenerator Class
 
 - `new UdevRuleGenerator()` - Create a new generator instance
-- `addDevice(vendorId: number, productId: number): void` - Add a specific device
-- `addVendorWildcard(vendorId: number): void` - Add all products from a vendor
+- `addDevice(vendorId: number, productId: number, bluetooth?: boolean): void` - Add a specific device
+- `addVendorWildcard(vendorId: number, bluetooth?: boolean): void` - Add all products from a vendor
 - `addRules(rules: UdevRuleDefinition[]): void` - Add multiple rule definitions
 - `addFileContents(content: string): void` - Parse and merge existing udev rules
 - `generateFile(options: UdevGeneratorOptions): string` - Generate the final rules

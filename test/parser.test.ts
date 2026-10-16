@@ -282,4 +282,61 @@ describe("UdevRuleGenerator", () => {
     expect(output).toContain('ATTRS{idProduct}=="0060"');
     expect(output).toContain('TAG+="uaccess"');
   });
+
+  it("should detect bluetooth rules", () => {
+    const content = `
+      KERNEL=="hidraw*", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c354", MODE:="660", TAG+="uaccess"
+      KERNEL=="hidraw*", KERNELS=="*:046D:C354.*", MODE:="660", TAG+="uaccess"
+      KERNEL=="hidraw*", ATTRS{idVendor}=="05f3", MODE:="660", TAG+="uaccess"
+      KERNEL=="hidraw*", KERNELS=="*:05F3:*.*", MODE:="660", TAG+="uaccess"
+      KERNEL=="hidraw*", ATTRS{idVendor}=="0fd9", ATTRS{idProduct}=="0060", MODE:="660", TAG+="uaccess"
+    `;
+
+    const generator = new UdevRuleGenerator();
+    generator.addFileContents(content);
+
+    expect(generator.rules).toStrictEqual([
+      { vendorId: 0x046d, productIds: [0xc354], bluetooth: true },
+      { vendorId: 0x05f3, productIds: null, bluetooth: true },
+      { vendorId: 0x0fd9, productIds: [0x0060] },
+    ]);
+  });
+
+  it("should round trip bluetooth rules through the generator", () => {
+    const rules: UdevRuleDefinition[] = [
+      { vendorId: 0x046d, productIds: [0xbc00, 0xc354], bluetooth: true },
+      { vendorId: 0x0fd9, productIds: [0x0060] },
+    ];
+
+    const generator = new UdevRuleGenerator();
+    generator.addRules(rules);
+
+    const parsed = new UdevRuleGenerator();
+    parsed.addFileContents(generator.generateFile({ mode: "desktop" }));
+
+    expect(parsed.rules).toStrictEqual(rules);
+  });
+
+  it("should keep bluetooth when a vendor wildcard replaces product IDs", () => {
+    const generator = new UdevRuleGenerator();
+    generator.addDevice(0x046d, 0xc354, true);
+    generator.addVendorWildcard(0x046d);
+
+    expect(generator.rules).toStrictEqual([
+      { vendorId: 0x046d, productIds: null, bluetooth: true },
+    ]);
+  });
+
+  it("should detect bluetooth rules with a specific bus", () => {
+    const content = `
+      KERNEL=="hidraw*", SUBSYSTEM=="hidraw", KERNELS=="0005:1EDB:BEF0.*", MODE:="660", TAG+="uaccess"
+    `;
+
+    const generator = new UdevRuleGenerator();
+    generator.addFileContents(content);
+
+    expect(generator.rules).toStrictEqual([
+      { vendorId: 0x1edb, productIds: [0xbef0], bluetooth: true },
+    ]);
+  });
 });
